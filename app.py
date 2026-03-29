@@ -11,9 +11,9 @@ st.set_page_config(page_title="Movie Recommender AI", page_icon="🍿")
 # 🎨 ESTILO
 st.markdown("""
 <style>
-body {
-    background-color: #0e1117;
-    color: white;
+h1 {text-align: center;}
+</style>
+""", unsafe_allow_html=True)
 }
 h1 {
     text-align: center;
@@ -129,35 +129,26 @@ predicciones, similitud = entrenar_modelo(df_ratings, df_peliculas, generos)
 # -------------------------------
 # FUNCIONES
 # -------------------------------
-def get_candidates(movie_id):
-    idx = df_peliculas[df_peliculas['movie_id'] == movie_id].index[0]
-    scores = list(enumerate(similitud[idx]))
-    scores = sorted(scores, key=lambda x: x[1], reverse=True)
-    return scores[1:50]
+def get_poster(title):
+    try:
+        title = title.split('(')[0]  # limpia año
 
-def hybrid(user_id, movie_id):
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
+        response = requests.get(url)
 
-    candidatos = get_candidates(movie_id)
-    resultados = []
+        if response.status_code != 200:
+            return None
 
-    for idx, score_cont in candidatos:
+        data = response.json()
 
-        movie_id_cand = df_peliculas.iloc[idx]['movie_id']
+        if data.get("results"):
+            poster_path = data["results"][0].get("poster_path")
+            if poster_path:
+                return f"https://image.tmdb.org/t/p/w500{poster_path}"
+    except:
+        return None
 
-        if user_id in predicciones.index:
-            score_colab = predicciones.loc[user_id, movie_id_cand]
-        else:
-            score_colab = 0
-
-        score_colab = score_colab / 5
-
-        final = 0.6 * score_colab + 0.4 * score_cont
-
-        resultados.append((movie_id_cand, final))
-
-    resultados = sorted(resultados, key=lambda x: x[1], reverse=True)
-
-    return resultados[:10]
+    return None
 
 # -------------------------------
 # UI
@@ -170,28 +161,22 @@ pelicula_nombre = st.selectbox("🎬 Selecciona película base", peliculas['titu
 
 movie_id = peliculas[peliculas['titulo'] == pelicula_nombre]['movie_id'].values[0]
 
-# -------------------------------
-# BOTÓN
-# -------------------------------
-if st.button("🚀 Recomendar"):
+for movie_id_rec, score in recs:
 
-    recs = hybrid(user_id, movie_id)
+    titulo = df_peliculas[
+        df_peliculas['movie_id'] == movie_id_rec
+    ]['titulo'].values[0]
 
-    st.subheader("🔥 Recomendaciones")
+    poster = get_poster(titulo)
 
-    cols = st.columns(5)
+    col1, col2 = st.columns([1,3])
 
-    for i, (movie_id_rec, score) in enumerate(recs):
+    with col1:
+        if poster:
+            st.image(poster, width=120)
 
-        titulo = df_peliculas[
-            df_peliculas['movie_id'] == movie_id_rec
-        ]['titulo'].values[0]
+    with col2:
+        st.markdown(f"### 🎬 {titulo}")
+        st.write(f"⭐ Score: {round(score,3)}")
 
-        poster = get_poster(titulo)
-
-        with cols[i % 5]:
-            if poster:
-                st.image(poster)
-
-            st.markdown(f"**{titulo}**")
-            st.write(f"⭐ {round(score,3)}")
+    st.divider()
