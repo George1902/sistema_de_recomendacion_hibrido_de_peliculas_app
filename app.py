@@ -1,21 +1,63 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pickle
-
-st.set_page_config(page_title="Recomendador de Películas", page_icon="🎬")
-
-st.title("🎬 Sistema de Recomendación de Películas")
-st.write("Modelo híbrido: SVD + Contenido")
+import requests
 
 # -------------------------------
-# CARGA DE DATOS (cache)
+# CONFIG
+# -------------------------------
+st.set_page_config(page_title="Movie Recommender AI", page_icon="🍿")
+
+# 🎨 ESTILO
+st.markdown("""
+<style>
+body {
+    background-color: #0e1117;
+    color: white;
+}
+h1 {
+    text-align: center;
+}
+.stButton>button {
+    background-color: #ff4b4b;
+    color: white;
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("<h1>🍿 Movie Recommender AI</h1>", unsafe_allow_html=True)
+st.write("Sistema híbrido: SVD + Contenido")
+
+# -------------------------------
+# API TMDB
+# -------------------------------
+API_KEY = "0ff80948475662e3ea66c7b442e3054a"
+
+def get_poster(title):
+    try:
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
+        data = requests.get(url).json()
+
+        if data["results"]:
+            poster_path = data["results"][0]["poster_path"]
+            if poster_path:
+                return f"https://image.tmdb.org/t/p/w500{poster_path}"
+    except:
+        pass
+    return None
+
+# -------------------------------
+# CARGA DE DATOS
 # -------------------------------
 @st.cache_data
 def cargar_datos():
-    df_ratings = pd.read_csv("data/u.data", sep="\t",
-                             names=['user_id','movie_id','rating','timestamp'])
-    
+    df_ratings = pd.read_csv(
+        "data/u.data",
+        sep="\t",
+        names=['user_id','movie_id','rating','timestamp']
+    )
+
     columnas_peliculas = [
         'movie_id', 'titulo', 'fecha_estreno', 'video_estreno',
         'imdb_url', 'unknown', 'Action', 'Adventure', 'Animation',
@@ -23,7 +65,7 @@ def cargar_datos():
         'Fantasy', 'Film-Noir', 'Horror', 'Musical', 'Mystery',
         'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'
     ]
-    
+
     df_peliculas = pd.read_csv(
         "data/u.item",
         sep="|",
@@ -38,12 +80,11 @@ def cargar_datos():
 df_ratings, df_peliculas, generos = cargar_datos()
 
 # -------------------------------
-# MODELO (cache)
+# MODELO
 # -------------------------------
 @st.cache_data
 def entrenar_modelo(df_ratings, df_peliculas, generos):
 
-    # matriz
     user_item = df_ratings.pivot(
         index='user_id',
         columns='movie_id',
@@ -68,7 +109,7 @@ def entrenar_modelo(df_ratings, df_peliculas, generos):
         columns=user_item.columns
     )
 
-    # contenido
+    # CONTENIDO
     def generar_generos(row):
         return ' '.join([g for g in generos if row[g] == 1])
 
@@ -122,25 +163,35 @@ def hybrid(user_id, movie_id):
 # UI
 # -------------------------------
 usuarios = df_ratings['user_id'].unique()
-user_id = st.selectbox("Selecciona usuario", usuarios)
+user_id = st.selectbox("👤 Selecciona usuario", usuarios)
 
 peliculas = df_peliculas[['movie_id','titulo']]
-pelicula_nombre = st.selectbox("Selecciona película base", peliculas['titulo'])
+pelicula_nombre = st.selectbox("🎬 Selecciona película base", peliculas['titulo'])
 
 movie_id = peliculas[peliculas['titulo'] == pelicula_nombre]['movie_id'].values[0]
 
 # -------------------------------
 # BOTÓN
 # -------------------------------
-if st.button("🎯 Recomendar"):
+if st.button("🚀 Recomendar"):
 
     recs = hybrid(user_id, movie_id)
 
-    st.subheader("📌 Recomendaciones")
+    st.subheader("🔥 Recomendaciones")
 
-    for movie_id_rec, score in recs:
+    cols = st.columns(5)
+
+    for i, (movie_id_rec, score) in enumerate(recs):
+
         titulo = df_peliculas[
             df_peliculas['movie_id'] == movie_id_rec
         ]['titulo'].values[0]
 
-        st.write(f"🎬 {titulo} — ⭐ {round(score,3)}")
+        poster = get_poster(titulo)
+
+        with cols[i % 5]:
+            if poster:
+                st.image(poster)
+
+            st.markdown(f"**{titulo}**")
+            st.write(f"⭐ {round(score,3)}")
