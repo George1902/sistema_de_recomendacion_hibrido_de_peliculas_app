@@ -2,21 +2,34 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
+import os
 
 # -------------------------------
 # CONFIG
 # -------------------------------
-st.set_page_config(page_title="Movie Recommender AI", page_icon="🍿")
+st.set_page_config(page_title="Movie Recommender AI", page_icon="🍿", layout="wide")
 
-# 🎨 ESTILO
+# 🎨 ESTILO NETFLIX
 st.markdown("""
 <style>
-h1 {text-align: center;}
+body {
+    background-color: #0e1117;
+    color: white;
+}
+
+h1 {
+    text-align: center;
+    color: white;
+}
 
 .stButton > button {
     background-color: #ff4b4b;
     color: white;
     border-radius: 10px;
+}
+
+.stSelectbox label {
+    color: white;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -25,11 +38,13 @@ st.markdown("<h1>🍿 Movie Recommender AI</h1>", unsafe_allow_html=True)
 st.write("Sistema híbrido: SVD + Contenido")
 
 # -------------------------------
-# API TMDB
+# API TMDB (SEGURA 🔐)
 # -------------------------------
-import os
-
 API_KEY = st.secrets.get("TMDB_API_KEY") or os.getenv("TMDB_API_KEY")
+
+if not API_KEY:
+    st.error("⚠️ Falta configurar la API KEY de TMDB")
+    st.stop()
 
 def get_poster(title):
     try:
@@ -127,38 +142,31 @@ def entrenar_modelo(df_ratings, df_peliculas, generos):
     tfidf_matrix = tfidf.fit_transform(df_peliculas['generos_str'])
     similitud = cosine_similarity(tfidf_matrix)
 
-    return predicciones, similitud, user_item
+    return predicciones, similitud
 
-predicciones, similitud, user_item = entrenar_modelo(df_ratings, df_peliculas, generos)
+predicciones, similitud = entrenar_modelo(df_ratings, df_peliculas, generos)
 
 # -------------------------------
-# SISTEMA HÍBRIDO 🔥
+# SISTEMA HÍBRIDO
 # -------------------------------
 def hybrid(user_id, movie_id, top_n=10):
 
-    # --- COLABORATIVO ---
     user_pred = predicciones.loc[user_id]
 
-    # --- CONTENIDO ---
     idx = df_peliculas[df_peliculas['movie_id'] == movie_id].index[0]
     sim_scores = list(enumerate(similitud[idx]))
 
-    # ordenar por similitud
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-
-    # tomar top similares
     sim_scores = sim_scores[1:50]
 
     movie_indices = [i[0] for i in sim_scores]
     movie_ids_similares = df_peliculas.iloc[movie_indices]['movie_id']
 
-    # combinar score
     scores = []
     for m_id in movie_ids_similares:
         score = user_pred.get(m_id, 0)
         scores.append((m_id, score))
 
-    # ordenar final
     scores = sorted(scores, key=lambda x: x[1], reverse=True)
 
     return scores[:top_n]
@@ -178,7 +186,11 @@ if st.button("🚀 Recomendar"):
 
     recs = hybrid(user_id, movie_id)
 
-    for movie_id_rec, score in recs:
+    st.subheader("🔥 Recomendaciones")
+
+    cols = st.columns(5)
+
+    for i, (movie_id_rec, score) in enumerate(recs):
 
         titulo = df_peliculas[
             df_peliculas['movie_id'] == movie_id_rec
@@ -186,14 +198,13 @@ if st.button("🚀 Recomendar"):
 
         poster = get_poster(titulo)
 
-        col1, col2 = st.columns([1,3])
+        col = cols[i % 5]
 
-        with col1:
+        with col:
             if poster:
-                st.image(poster, width=120)
+                st.image(poster, use_container_width=True)
+            else:
+                st.write("🎬")
 
-        with col2:
-            st.markdown(f"### 🎬 {titulo}")
-            st.write(f"⭐ Score: {round(score,3)}")
-
-        st.divider()
+            st.caption(titulo[:30])
+            st.caption(f"⭐ {round(score,2)}")
