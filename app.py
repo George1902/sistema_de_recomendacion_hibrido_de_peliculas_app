@@ -166,30 +166,6 @@ pelicula_nombre = st.selectbox("🎬 Selecciona película base", peliculas['titu
 
 movie_id = peliculas[peliculas['titulo'] == pelicula_nombre]['movie_id'].values[0]
 
-if st.button("🚀 Recomendar"):
-
-    recs = hybrid(user_id, movie_id)
-
-    for movie_id_rec, score in recs:
-
-        titulo = df_peliculas[
-            df_peliculas['movie_id'] == movie_id_rec
-        ]['titulo'].values[0]
-
-        poster = get_poster(titulo)
-
-        col1, col2 = st.columns([1,3])
-
-        with col1:
-            if poster:
-                st.image(poster, width=120)
-
-        with col2:
-            st.markdown(f"### 🎬 {titulo}")
-            st.write(f"⭐ Score: {round(score,3)}")
-
-        st.divider()
-
 if "recs" not in st.session_state:
     st.session_state.recs = None
 
