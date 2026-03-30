@@ -7,45 +7,95 @@ import os
 # -------------------------------
 # CONFIG
 # -------------------------------
-st.set_page_config(page_title="Movie Recommender AI", page_icon="🍿", layout="wide")
+st.set_page_config(
+    page_title="Movie Recommender AI",
+    page_icon="🍿",
+    layout="wide"
+)
 
+# -------------------------------
 # 🎨 ESTILO NETFLIX
+# -------------------------------
 st.markdown("""
 <style>
-body {
-    background-color: #0e1117;
-    color: white;
+
+/* CONTENEDOR */
+.movie-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    cursor: pointer;
 }
 
-h1 {
-    text-align: center;
-    color: white;
+/* IMAGEN */
+.movie-img {
+    width: 100%;
+    border-radius: 12px;
+    transition: transform 0.4s ease;
 }
 
-.stButton > button {
-    background-color: #ff4b4b;
-    color: white;
-    border-radius: 10px;
+/* ZOOM */
+.movie-container:hover .movie-img {
+    transform: scale(1.1);
 }
 
-.stSelectbox label {
-    color: white;
+/* OVERLAY */
+.movie-overlay {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0));
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
+
+/* MOSTRAR OVERLAY */
+.movie-container:hover .movie-overlay {
+    opacity: 1;
+}
+
+/* TITULO */
+.movie-title {
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* SCORE */
+.movie-score {
+    color: #e50914;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* PLACEHOLDER */
+.no-image {
+    height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #1c1c1c;
+    color: white;
+    font-size: 30px;
+    border-radius: 12px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>🍿 Movie Recommender AI</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'>🍿 Movie Recommender AI</h1>", unsafe_allow_html=True)
 st.write("Sistema híbrido: SVD + Contenido")
 
 # -------------------------------
-# API TMDB (SEGURA 🔐)
+# 🔐 API SEGURA
 # -------------------------------
 API_KEY = st.secrets.get("TMDB_API_KEY") or os.getenv("TMDB_API_KEY")
 
-if not API_KEY:
-    st.error("⚠️ Falta configurar la API KEY de TMDB")
-    st.stop()
-
+# -------------------------------
+# 🎬 POSTERS
+# -------------------------------
 def get_poster(title):
     try:
         title = title.split('(')[0]
@@ -68,7 +118,7 @@ def get_poster(title):
     return None
 
 # -------------------------------
-# CARGA DE DATOS
+# 📂 DATOS
 # -------------------------------
 @st.cache_data
 def cargar_datos():
@@ -100,7 +150,7 @@ def cargar_datos():
 df_ratings, df_peliculas, generos = cargar_datos()
 
 # -------------------------------
-# MODELO
+# 🤖 MODELO
 # -------------------------------
 @st.cache_data
 def entrenar_modelo(df_ratings, df_peliculas, generos):
@@ -147,17 +197,15 @@ def entrenar_modelo(df_ratings, df_peliculas, generos):
 predicciones, similitud = entrenar_modelo(df_ratings, df_peliculas, generos)
 
 # -------------------------------
-# SISTEMA HÍBRIDO
+# 🔥 SISTEMA HÍBRIDO
 # -------------------------------
-def hybrid(user_id, movie_id, top_n=10):
+def hybrid(user_id, movie_id, top_n=15):
 
     user_pred = predicciones.loc[user_id]
 
     idx = df_peliculas[df_peliculas['movie_id'] == movie_id].index[0]
     sim_scores = list(enumerate(similitud[idx]))
-
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-    sim_scores = sim_scores[1:50]
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:50]
 
     movie_indices = [i[0] for i in sim_scores]
     movie_ids_similares = df_peliculas.iloc[movie_indices]['movie_id']
@@ -172,16 +220,19 @@ def hybrid(user_id, movie_id, top_n=10):
     return scores[:top_n]
 
 # -------------------------------
-# UI
+# 🎛️ UI
 # -------------------------------
 usuarios = df_ratings['user_id'].unique()
-user_id = st.selectbox("👤 Selecciona usuario", usuarios)
+user_id = st.selectbox("👤 Usuario", usuarios)
 
 peliculas = df_peliculas[['movie_id','titulo']]
-pelicula_nombre = st.selectbox("🎬 Selecciona película base", peliculas['titulo'])
+pelicula_nombre = st.selectbox("🎬 Película base", peliculas['titulo'])
 
 movie_id = peliculas[peliculas['titulo'] == pelicula_nombre]['movie_id'].values[0]
 
+# -------------------------------
+# 🚀 RECOMENDADOR
+# -------------------------------
 if st.button("🚀 Recomendar"):
 
     recs = hybrid(user_id, movie_id)
@@ -201,10 +252,25 @@ if st.button("🚀 Recomendar"):
         col = cols[i % 5]
 
         with col:
-            if poster:
-                st.image(poster, use_container_width=True)
-            else:
-                st.write("🎬")
 
-            st.caption(titulo[:30])
-            st.caption(f"⭐ {round(score,2)}")
+            if poster:
+                st.markdown(f"""
+                <div class="movie-container">
+                    <img src="{poster}" class="movie-img"/>
+                    <div class="movie-overlay">
+                        <div class="movie-title">{titulo[:30]}</div>
+                        <div class="movie-score">⭐ {round(score,2)}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            else:
+                st.markdown(f"""
+                <div class="movie-container">
+                    <div class="no-image">🎬</div>
+                    <div class="movie-overlay">
+                        <div class="movie-title">{titulo[:30]}</div>
+                        <div class="movie-score">⭐ {round(score,2)}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
