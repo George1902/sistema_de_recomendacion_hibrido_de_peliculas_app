@@ -73,6 +73,7 @@ El proyecto sigue un enfoque híbrido conceptual:
 ├── app.py
 ├── README.md
 ├── requirements.txt
+└── Sistema_Recomendacion_Peliculas.ipynb
 ```
 
 ---
