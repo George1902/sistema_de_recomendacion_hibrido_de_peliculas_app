@@ -158,22 +158,44 @@ pelicula_nombre = st.selectbox("🎬 Selecciona película base", peliculas['titu
 
 movie_id = peliculas[peliculas['titulo'] == pelicula_nombre]['movie_id'].values[0]
 
-for movie_id_rec, score in recs:
+usuarios = df_ratings['user_id'].unique()
+user_id = st.selectbox("👤 Selecciona usuario", usuarios)
 
-    titulo = df_peliculas[
-        df_peliculas['movie_id'] == movie_id_rec
-    ]['titulo'].values[0]
+peliculas = df_peliculas[['movie_id','titulo']]
+pelicula_nombre = st.selectbox("🎬 Selecciona película base", peliculas['titulo'])
 
-    poster = get_poster(titulo)
+movie_id = peliculas[peliculas['titulo'] == pelicula_nombre]['movie_id'].values[0]
 
-    col1, col2 = st.columns([1,3])
+if st.button("🚀 Recomendar"):
 
-    with col1:
-        if poster:
-            st.image(poster, width=120)
+    recs = hybrid(user_id, movie_id)
 
-    with col2:
-        st.markdown(f"### 🎬 {titulo}")
-        st.write(f"⭐ Score: {round(score,3)}")
+    for movie_id_rec, score in recs:
 
-    st.divider()
+        titulo = df_peliculas[
+            df_peliculas['movie_id'] == movie_id_rec
+        ]['titulo'].values[0]
+
+        poster = get_poster(titulo)
+
+        col1, col2 = st.columns([1,3])
+
+        with col1:
+            if poster:
+                st.image(poster, width=120)
+
+        with col2:
+            st.markdown(f"### 🎬 {titulo}")
+            st.write(f"⭐ Score: {round(score,3)}")
+
+        st.divider()
+
+if "recs" not in st.session_state:
+    st.session_state.recs = None
+
+if st.button("🚀 Recomendar"):
+    st.session_state.recs = hybrid(user_id, movie_id)
+
+if st.session_state.recs:
+    for movie_id_rec, score in st.session_state.recs:
+        ...
