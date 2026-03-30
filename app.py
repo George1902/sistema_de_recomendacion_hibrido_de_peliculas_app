@@ -11,23 +11,15 @@ st.set_page_config(page_title="Movie Recommender AI", page_icon="🍿")
 # 🎨 ESTILO
 st.markdown("""
 <style>
-h1 {text-align: center;}
-</style>
-""", unsafe_allow_html=True)
-
 h1 {
     text-align: center;
 }
-st.markdown("""
-<style>
+
 .stButton > button {
     background-color: #ff4b4b;
     color: white;
     border-radius: 10px;
 }
-</style>
-""", unsafe_allow_html=True)
-
 </style>
 """, unsafe_allow_html=True)
 
