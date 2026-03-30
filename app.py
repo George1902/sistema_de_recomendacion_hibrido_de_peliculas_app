@@ -11,9 +11,7 @@ st.set_page_config(page_title="Movie Recommender AI", page_icon="🍿")
 # 🎨 ESTILO
 st.markdown("""
 <style>
-h1 {
-    text-align: center;
-}
+h1 {text-align: center;}
 
 .stButton > button {
     background-color: #ff4b4b;
@@ -29,19 +27,27 @@ st.write("Sistema híbrido: SVD + Contenido")
 # -------------------------------
 # API TMDB
 # -------------------------------
-API_KEY = "0ff80948475662e3ea66c7b442e3054a"
+API_KEY = st.secrets["TMDB_API_KEY"]
 
 def get_poster(title):
     try:
-        url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
-        data = requests.get(url).json()
+        title = title.split('(')[0]
 
-        if data["results"]:
-            poster_path = data["results"][0]["poster_path"]
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+
+        if data.get("results"):
+            poster_path = data["results"][0].get("poster_path")
             if poster_path:
                 return f"https://image.tmdb.org/t/p/w500{poster_path}"
     except:
-        pass
+        return None
+
     return None
 
 # -------------------------------
@@ -119,38 +125,45 @@ def entrenar_modelo(df_ratings, df_peliculas, generos):
     tfidf_matrix = tfidf.fit_transform(df_peliculas['generos_str'])
     similitud = cosine_similarity(tfidf_matrix)
 
-    return predicciones, similitud
+    return predicciones, similitud, user_item
 
-predicciones, similitud = entrenar_modelo(df_ratings, df_peliculas, generos)
+predicciones, similitud, user_item = entrenar_modelo(df_ratings, df_peliculas, generos)
 
 # -------------------------------
-# FUNCIONES
+# SISTEMA HÍBRIDO 🔥
 # -------------------------------
-def get_poster(title):
-    try:
-        title = title.split('(')[0]  # limpia año
+def hybrid(user_id, movie_id, top_n=10):
 
-        url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
-        response = requests.get(url)
+    # --- COLABORATIVO ---
+    user_pred = predicciones.loc[user_id]
 
-        if response.status_code != 200:
-            return None
+    # --- CONTENIDO ---
+    idx = df_peliculas[df_peliculas['movie_id'] == movie_id].index[0]
+    sim_scores = list(enumerate(similitud[idx]))
 
-        data = response.json()
+    # ordenar por similitud
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
-        if data.get("results"):
-            poster_path = data["results"][0].get("poster_path")
-            if poster_path:
-                return f"https://image.tmdb.org/t/p/w500{poster_path}"
-    except:
-        return None
+    # tomar top similares
+    sim_scores = sim_scores[1:50]
 
-    return None
+    movie_indices = [i[0] for i in sim_scores]
+    movie_ids_similares = df_peliculas.iloc[movie_indices]['movie_id']
+
+    # combinar score
+    scores = []
+    for m_id in movie_ids_similares:
+        score = user_pred.get(m_id, 0)
+        scores.append((m_id, score))
+
+    # ordenar final
+    scores = sorted(scores, key=lambda x: x[1], reverse=True)
+
+    return scores[:top_n]
 
 # -------------------------------
 # UI
 # -------------------------------
-
 usuarios = df_ratings['user_id'].unique()
 user_id = st.selectbox("👤 Selecciona usuario", usuarios)
 
