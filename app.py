@@ -150,13 +150,6 @@ def get_poster(title):
 # -------------------------------
 # UI
 # -------------------------------
-usuarios = df_ratings['user_id'].unique()
-user_id = st.selectbox("👤 Selecciona usuario", usuarios)
-
-peliculas = df_peliculas[['movie_id','titulo']]
-pelicula_nombre = st.selectbox("🎬 Selecciona película base", peliculas['titulo'])
-
-movie_id = peliculas[peliculas['titulo'] == pelicula_nombre]['movie_id'].values[0]
 
 usuarios = df_ratings['user_id'].unique()
 user_id = st.selectbox("👤 Selecciona usuario", usuarios)
