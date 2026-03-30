@@ -27,7 +27,9 @@ st.write("Sistema híbrido: SVD + Contenido")
 # -------------------------------
 # API TMDB
 # -------------------------------
-API_KEY = st.secrets["TMDB_API_KEY"]
+import os
+
+API_KEY = st.secrets.get("TMDB_API_KEY") or os.getenv("TMDB_API_KEY")
 
 def get_poster(title):
     try:
